@@ -399,7 +399,7 @@ if __name__ == "__main__":
             with open(filename, "w") as f:
                 f.write(f"<center><h4>Last Update At: {datetime.datetime.now().strftime('%Y %m %d - %H:%M:%S')}</h4></center>")
                 f.write(table + "\n<br><hr><br>" + indexTable + "<hr>")
-                f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(minutesSleep) + " );</script>")
+                f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(minutesSleep / 2) + " );</script>")
             print("Written to file: ", f.name)
 
         time.sleep(minutesSleep * 60)
