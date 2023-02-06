@@ -1,4 +1,6 @@
 import os
+import datetime
+import urllib.parse
 import boto3
 from botocore.exceptions import ClientError
 
@@ -9,6 +11,28 @@ indicesUrl = "https://www.nseindia.com/api/option-chain-indices?symbol="
 equitiesUrl = "https://www.nseindia.com/api/option-chain-equities?symbol="
 
 cookies = None
+
+
+def printProgressBar(iteration, total, prefix="", suffix="", decimals=1, length=100, fill="█", printEnd="\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + "-" * (length - filledLength)
+    print(f"\r{prefix} |{bar}| {percent}% {suffix}", end=printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
 
 
 def getJson(url):
@@ -269,12 +293,10 @@ def getData(sym, isIndex=False):
     callDiff = result["call"] - underlying_value
     if abs(putDiff) < abs(callDiff):
         result["analysisType"] = "put"
-        result["analysisValue"] = str(round(abs(putDiff), 3))
+        result["analysisValue"] = round(abs(putDiff), 3)
     else:
         result["analysisType"] = "call"
-        result["analysisValue"] = str(round(abs(callDiff), 3))
-
-    # check for env variable IS_AWS_LAMBDA
+        result["analysisValue"] = round(abs(callDiff), 3)
 
     if "IS_AWS_LAMBDA" in os.environ:
         print("Done for", sym)
@@ -282,43 +304,40 @@ def getData(sym, isIndex=False):
     return result
 
 
-def mainFunction():
+def getAnalysis(isIndex=True):
     printStr = ""
-
-    mockResults = False
-    if mockResults:
-        printStr += "Mock results. Some output"
-        printStr += "Mock results. Some output"
-        printStr += "Mock results. Some output"
-        printStr += "Mock results. Some output"
-        printStr += "Mock results. Some output"
-        printStr += "Mock results. Some output"
-
+    if isIndex:
+        stockList = ["NIFTY", "BANKNIFTY"]
     else:
         stockList = getStockList()
-        res = []
-        for stock in stockList:
-            print("Getting data for", stock)
-            try:
-                res.append(getData(stock))
-            except Exception as e:
-                print("Error for", stock, e)
 
-        # sort res based on analysisValue
-        res = [i for i in res if i is not None]
-        res = sorted(res, key=lambda x: x["analysisValue"])
+    res = []
+    prefix = "Progress: Index" if isIndex else "Progress: Equity"
+    printProgressBar(0, len(stockList), prefix=prefix, suffix="Complete", length=50)
 
-        tableData = [["Stock", "Put OI", "Current", "Call OI", "Analysis", "Analysis Value"]]
-        for r in res:
-            tableData.append([r["sym"], r["put"], r["currentValue"], r["call"], r["analysisType"], r["analysisValue"]])
-            printStr += f"\nStock: {r['sym']} | {r['put']}  {r['currentValue']}  {r['call']} | {r['analysisType']}:{r['analysisValue']}"
+    for stock in stockList:
+        printProgressBar(stockList.index(stock) + 1, len(stockList), prefix=prefix, suffix="Complete", length=50)
+        try:
+            res.append(getData(urllib.parse.quote(stock), isIndex=isIndex))
+        except Exception as e:
+            print("Error for", stock, e)
+
+    # sort res based on analysisValue
+    res = [i for i in res if i is not None]
+    res = sorted(res, key=lambda x: x["analysisValue"])
+
+    tableData = [["Stock", "Put OI", "Current", "Call OI", "Analysis", "Analysis Value"]]
+    for r in res:
+        tableData.append([r["sym"], r["put"], r["currentValue"], r["call"], r["analysisType"], r["analysisValue"]])
+        printStr += f"\nStock: {r['sym']} | {r['put']}  {r['currentValue']}  {r['call']} | {r['analysisType']}:{r['analysisValue']}"
 
     table = AsciiTable(tableData)
+
     return table.table
 
 
 def lambda_handler(event, context):
-    data = mainFunction()
+    data = getAnalysis()
     SENDER = "nekvinder-bot-stocks <nekvinder@gmail.com>"
     RECIPIENT = "goesdeeper@protonmail.com"
     # CONFIGURATION_SET = "ConfigSet"
@@ -362,4 +381,11 @@ def lambda_handler(event, context):
 
 
 if __name__ == "__main__":
-    print(mainFunction())
+
+    table = getAnalysis()
+    indexTable = getAnalysis(isIndex=False)
+    # write to a file names YYYYMMDDHHMMSS.txt
+    with open(f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.txt", "w") as f:
+        f.write(table + "\n" + indexTable)
+
+    print("Written to file: ", f.name)
