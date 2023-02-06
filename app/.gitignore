@@ -3,6 +3,8 @@
 *.d.ts
 node_modules
 
+202*.txt
+202*.html
 # CDK asset staging directory
 .cdk.staging
 cdk.out
