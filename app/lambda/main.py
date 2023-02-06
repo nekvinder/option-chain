@@ -23,11 +23,11 @@ def getJson(url):
     if not cookies:
         request = session.get(baseurl, headers=headers, timeout=100)
         cookies = dict(request.cookies)
-    print("Calling url: " + url + " with cookies: " + str(cookies))
+    # print("Calling url: " + url + " with cookies: " + str(cookies))
     response = session.get(url, headers=headers, timeout=30, cookies=cookies)
-    print("Got response from url: " + url)
+    # print("Got response from url: " + url)
     json_obj = response.json()
-    print("Response: " + str(json_obj))
+    # print("Response: " + str(json_obj))
 
     return json_obj
 
@@ -36,7 +36,7 @@ def getStockList():
     try:
         return getJson("https://www.nseindia.com/api/master-quote")["data"]
     except:
-        print("Error in getting stock list, using local list")
+        # print("Error in getting stock list, using local list")
         return [
             "AARTIIND",
             "ABB",
@@ -297,11 +297,12 @@ def mainFunction():
     else:
         stockList = getStockList()
         res = []
-        for stock in stockList[:5]:
-            if "IS_AWS_LAMBDA" in os.environ:
-                print("Getting data for", stock)
-
-            res.append(getData(stock))
+        for stock in stockList:
+            print("Getting data for", stock)
+            try:
+                res.append(getData(stock))
+            except Exception as e:
+                print("Error for", stock, e)
 
         # sort res based on analysisValue
         res = [i for i in res if i is not None]
