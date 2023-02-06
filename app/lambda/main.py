@@ -1,4 +1,6 @@
 import os
+import time
+from tabulate import tabulate
 import datetime
 import urllib.parse
 import boto3
@@ -309,7 +311,7 @@ def getAnalysis(isIndex=True):
     if isIndex:
         stockList = ["NIFTY", "BANKNIFTY"]
     else:
-        stockList = getStockList()
+        stockList = getStockList()[:5]
 
     res = []
     prefix = "Progress: Index" if isIndex else "Progress: Equity"
@@ -326,14 +328,19 @@ def getAnalysis(isIndex=True):
     res = [i for i in res if i is not None]
     res = sorted(res, key=lambda x: x["analysisValue"])
 
-    tableData = [["Stock", "Put OI", "Current", "Call OI", "Analysis", "Analysis Value"]]
+    linkRef = f"https://in.tradingview.com/chart/?symbol=NSE%3A"
+
+    tableHeader = ["Stock", "Put OI", "Current", "Call OI", "Analysis", "Analysis Value", "Link"]
+    tableData = []
     for r in res:
-        tableData.append([r["sym"], r["put"], r["currentValue"], r["call"], r["analysisType"], r["analysisValue"]])
+        tableData.append([r["sym"], r["put"], r["currentValue"], r["call"], r["analysisType"], r["analysisValue"], f'<a target="_" href="{linkRef + r["sym"]}">Chart</a>'])
         printStr += f"\nStock: {r['sym']} | {r['put']}  {r['currentValue']}  {r['call']} | {r['analysisType']}:{r['analysisValue']}"
 
     table = AsciiTable(tableData)
+    htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
+    return "<center>" + htmlTable + "</center>"
 
-    return table.table
+    # return table.table
 
 
 def lambda_handler(event, context):
@@ -382,10 +389,17 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
 
-    table = getAnalysis()
-    indexTable = getAnalysis(isIndex=False)
-    # write to a file names YYYYMMDDHHMMSS.txt
-    with open(f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.txt", "w") as f:
-        f.write(table + "\n" + indexTable)
+    while True:
+        table = getAnalysis()
+        minutesSleep = 1
+        indexTable = getAnalysis(isIndex=False)
+        # write to a file names YYYYMMDDHHMMSS.txt
+        currentTime = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+        for filename in [currentTime + ".html", "latest.html"]:
+            with open(filename, "w") as f:
+                f.write(f"<center><h4>Last Update At: {datetime.datetime.now().strftime('%Y %m %d - %H:%M:%S')}</h4></center>")
+                f.write(table + "\n<br><hr><br>" + indexTable + "<hr>")
+                f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(minutesSleep) + " );</script>")
+            print("Written to file: ", f.name)
 
-    print("Written to file: ", f.name)
+        time.sleep(minutesSleep * 60)
