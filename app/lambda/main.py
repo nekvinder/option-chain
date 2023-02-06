@@ -26,8 +26,8 @@ def getJson(url):
     print("Calling url: " + url + " with cookies: " + str(cookies))
     response = session.get(url, headers=headers, timeout=30, cookies=cookies)
     print("Got response from url: " + url)
-    print("Response: " + str(json_obj))
     json_obj = response.json()
+    print("Response: " + str(json_obj))
 
     return json_obj
 
