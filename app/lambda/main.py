@@ -311,7 +311,7 @@ def getAnalysis(isIndex=True):
     if isIndex:
         stockList = ["NIFTY", "BANKNIFTY"]
     else:
-        stockList = getStockList()[:5]
+        stockList = getStockList()
 
     res = []
     prefix = "Progress: Index" if isIndex else "Progress: Equity"
