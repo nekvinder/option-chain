@@ -391,7 +391,7 @@ if __name__ == "__main__":
 
     while True:
         table = getAnalysis()
-        minutesSleep = 1
+        minutesSleep = 15
         indexTable = getAnalysis(isIndex=False)
         # write to a file names YYYYMMDDHHMMSS.txt
         currentTime = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
