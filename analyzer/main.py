@@ -49,8 +49,8 @@ def getData(sym, isIndex=False):
             splitIndex = i
             break
 
-    result["put"] = getOIAnalysis(json_obj, splitIndex, searchRecordsCount, "PE")
-    result["call"] = getOIAnalysis(json_obj, splitIndex, searchRecordsCount, "CE")
+    result["put"] = getOIAnalysis(json_obj, splitIndex, searchRecordsCount, "CE")
+    result["call"] = getOIAnalysis(json_obj, splitIndex, searchRecordsCount, "PE")
 
     result["currentValue"] = underlying_value
     putDiff = result["put"] - underlying_value
