@@ -9,6 +9,7 @@ from botocore.exceptions import ClientError
 from terminaltables import AsciiTable
 import requests
 
+isEnvTest = os.environ.get("ENV") == "test"
 indicesUrl = "https://www.nseindia.com/api/option-chain-indices?symbol="
 equitiesUrl = "https://www.nseindia.com/api/option-chain-equities?symbol="
 
@@ -312,6 +313,8 @@ def getAnalysis(isIndex=True):
         stockList = ["NIFTY", "BANKNIFTY"]
     else:
         stockList = getStockList()
+        if isEnvTest:
+            stockList = stockList[:5]
 
     res = []
     prefix = "Progress: Index" if isIndex else "Progress: Equity"
@@ -328,67 +331,27 @@ def getAnalysis(isIndex=True):
     res = [i for i in res if i is not None]
     res = sorted(res, key=lambda x: x["analysisValue"])
 
+    countResCall = len([i for i in res if i["analysisType"] == "call"])
+    countResPut = len([i for i in res if i["analysisType"] == "put"])
+
     linkRef = f"https://in.tradingview.com/chart/?symbol=NSE%3A"
 
     tableHeader = ["Stock", "Put OI", "Current", "Call OI", "Analysis", "Analysis Value", "Link"]
     tableData = []
     for r in res:
         tableData.append([r["sym"], r["put"], r["currentValue"], r["call"], r["analysisType"], r["analysisValue"], f'<a target="_" href="{linkRef + r["sym"]}">Chart</a>'])
-        printStr += f"\nStock: {r['sym']} | {r['put']}  {r['currentValue']}  {r['call']} | {r['analysisType']}:{r['analysisValue']}"
 
-    table = AsciiTable(tableData)
-    htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
-    return "<center>" + htmlTable + "</center>"
-
+    # table = AsciiTable(tableData)
     # return table.table
-
-
-def lambda_handler(event, context):
-    data = getAnalysis()
-    SENDER = "nekvinder-bot-stocks <nekvinder@gmail.com>"
-    RECIPIENT = "goesdeeper@protonmail.com"
-    # CONFIGURATION_SET = "ConfigSet"
-    AWS_REGION = "ap-south-1"
-    SUBJECT = "Stocks Option chain analysis"
-    BODY_TEXT = data
-    BODY_HTML = f"""<html> <head></head> <body> {data} </body> </html> """
-    CHARSET = "UTF-8"
-    client = boto3.client("ses", region_name=AWS_REGION)
-    try:
-        response = client.send_email(
-            Destination={
-                "ToAddresses": [
-                    RECIPIENT,
-                ],
-            },
-            Message={
-                "Body": {
-                    "Html": {
-                        "Charset": CHARSET,
-                        "Data": BODY_HTML,
-                    },
-                    "Text": {
-                        "Charset": CHARSET,
-                        "Data": BODY_TEXT,
-                    },
-                },
-                "Subject": {
-                    "Charset": CHARSET,
-                    "Data": SUBJECT,
-                },
-            },
-            Source=SENDER,
-            # ConfigurationSetName=CONFIGURATION_SET,
-        )
-    except ClientError as e:
-        print(e.response["Error"]["Message"])
-    else:
-        print("Email sent! Message ID:"),
-        print(response["MessageId"])
+    htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
+    htmlStr = ""
+    if not isIndex:
+        htmlStr += f"<center><h4>Total - Call({countResCall}) Put({countResPut})</h4></center>"
+    htmlStr += "<center>" + htmlTable + "</center>"
+    return htmlStr
 
 
 if __name__ == "__main__":
-
     while True:
         table = getAnalysis()
         minutesSleep = 15
@@ -399,7 +362,7 @@ if __name__ == "__main__":
             with open(filename, "w") as f:
                 f.write(f"<center><h4>Last Update At: {datetime.datetime.now().strftime('%Y %m %d - %H:%M:%S')}</h4></center>")
                 f.write(table + "\n<br><hr><br>" + indexTable + "<hr>")
-                f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(minutesSleep / 2) + " );</script>")
+                f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(1) + " );</script>")
             print("Written to file: ", f.name)
 
         time.sleep(minutesSleep * 60)
