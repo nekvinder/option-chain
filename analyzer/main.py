@@ -15,7 +15,6 @@ cookies = None
 
 def getStockList():
     try:
-        raise Exception("Error in getting stock list, using local list")
         return getJson("https://www.nseindia.com/api/master-quote", cookies)["data"]
     except:
         print("Error in getting stock list, using local list")
