@@ -1,4 +1,5 @@
 import os
+import ray
 import json
 import time
 from tabulate import tabulate
@@ -69,25 +70,34 @@ def getData(sym, isIndex=False):
     return result
 
 
-def getAnalysis(isIndex=True):
-    if isIndex:
-        stockList = ["NIFTY", "BANKNIFTY"]
-    else:
-        stockList = getStockList()
-        if isEnvTest:
-            stockList = stockList[:5]
-
+@ray.remote
+def getStocksData(stockList, prefix, isIndex=False):
     res = []
-    prefix = "Progress: Index" if isIndex else "Progress: Equity"
-    printProgressBar(0, len(stockList), prefix=prefix, suffix="Complete", length=50)
-
     for stock in stockList:
         printProgressBar(stockList.index(stock) + 1, len(stockList), prefix=prefix, suffix="Complete", length=50)
         try:
             res.append(getData(urllib.parse.quote(stock), isIndex=isIndex))
         except Exception as e:
             print("Error for", stock, e)
+    return res
 
+
+def getAnalysis(isIndex=True):
+    if isIndex:
+        stockList = ["NIFTY", "BANKNIFTY"]
+    else:
+        stockList = getStockList()
+        if isEnvTest:
+            stockList = stockList[:15]
+
+    prefix = "Progress: Index" if isIndex else "Progress: Equity"
+    printProgressBar(0, len(stockList), prefix=prefix, suffix="Complete", length=50)
+
+    ret_id1 = getStocksData.remote(stockList[len(stockList) // 2 :], prefix, isIndex=isIndex)
+    ret_id2 = getStocksData.remote(stockList[: len(stockList) // 2], prefix, isIndex=isIndex)
+    ret1, ret2 = ray.get([ret_id1, ret_id2])
+
+    res = ret1 + ret2
     # sort res based on analysisValue
     res = [i for i in res if i is not None]
     res = sorted(res, key=lambda x: x["analysisValue"])
@@ -122,4 +132,5 @@ if __name__ == "__main__":
                 f.write(table + "\n<br><hr><br>" + indexTable + "<hr>")
                 f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(1) + " );</script>")
             print("Written to file: ", f.name)
+        exit(0)
         time.sleep(minutesSleep * 60)
