@@ -72,6 +72,7 @@ def getData(sym, isIndex=False):
 def getAnalysis(isIndex=True):
     if isIndex:
         stockList = ["NIFTY", "BANKNIFTY"]
+        stockListSuffixGF = ["NIFTY_50", "NIFTY_BANK"]
     else:
         stockList = getStockList()
         if isEnvTest:
@@ -95,12 +96,26 @@ def getAnalysis(isIndex=True):
     countResCall = len([i for i in res if i["analysisType"] == "call"])
     countResPut = len([i for i in res if i["analysisType"] == "put"])
 
-    linkRef = f"https://in.tradingview.com/chart/?symbol=NSE%3A"
+    linkRefTD = f"https://in.tradingview.com/chart/?symbol=NSE%3A"
+    linkRefGF = f"https://www.google.com/finance/quote/"
+    gfSuffix = "INDEXNSE" if isIndex else "NSE"
 
-    tableHeader = ["Stock", "Put OI", "Current", "Call OI", "Analysis", "Analysis Value", "Link"]
+    tableHeader = ["Stock", "Put OI", "Current", "Call OI", "Analysis", "Analysis Value", "Link TD", "Link GF"]
     tableData = []
     for r in res:
-        tableData.append([r["sym"], r["put"], r["currentValue"], r["call"], r["analysisType"], r["analysisValue"], f'<a target="_" href="{linkRef + r["sym"]}">Chart</a>'])
+        symGF = stockListSuffixGF[stockList.index(r["sym"])] if isIndex else r["sym"]
+        tableData.append(
+            [
+                r["sym"],
+                r["put"],
+                r["currentValue"],
+                r["call"],
+                r["analysisType"],
+                r["analysisValue"],
+                f'<a target="_" href="{linkRefTD + r["sym"]}">Chart</a>',
+                f'<a target="_" href="{linkRefGF + symGF + ":" + gfSuffix }">GF</a>',
+            ],
+        )
 
     htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
     htmlStr = ""
