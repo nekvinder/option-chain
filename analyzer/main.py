@@ -110,16 +110,100 @@ def getAnalysis(isIndex=True):
     return htmlStr
 
 
+def generateLocalFiles():
+    # while True:
+    table = getAnalysis()
+    # minutesSleep = 15
+    indexTable = getAnalysis(isIndex=False)
+    currentTime = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+    for filename in [currentTime + ".html", "latest.html"]:
+        with open(filename, "w") as f:
+            f.write(f"<center><h4>Last Update At: {datetime.datetime.now().strftime('%Y %m %d - %H:%M:%S')}</h4></center>")
+            f.write(table + "\n<br><hr><br>" + indexTable + "<hr>")
+            f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(1) + " );</script>")
+        print("Written to file: ", f.name)
+    # time.sleep(minutesSleep * 60)
+
+
+def sendEmail(BODY_HTML):
+    import boto3
+    from botocore.exceptions import ClientError
+
+    # Replace sender@example.com with your "From" address.
+    # This address must be verified with Amazon SES.
+    SENDER = "nekAnalyzer <nekvinder@gmail.com>"
+
+    # Replace recipient@example.com with a "To" address. If your account
+    # is still in the sandbox, this address must be verified.
+    # RECIPIENT = "goesdeeper@protonmail.com"
+    RECIPIENT = "rocksukhvinder@gmail.com"
+
+    # Specify a configuration set. If you do not want to use a configuration
+    # set, comment the following variable, and the
+    # ConfigurationSetName=CONFIGURATION_SET argument below.
+    # CONFIGURATION_SET = "ConfigSet"
+
+    # If necessary, replace us-west-2 with the AWS Region you're using for Amazon SES.
+    AWS_REGION = "ap-south-1"
+
+    # The subject line for the email.
+    SUBJECT = "Analysis Bot"
+
+    # The email body for recipients with non-HTML email clients.
+    BODY_TEXT = "Err code 126"
+
+    # The character encoding for the email.
+    CHARSET = "UTF-8"
+
+    # Create a new SES resource and specify a region.
+    client = boto3.client("ses", region_name=AWS_REGION)
+
+    # Try to send the email.
+    try:
+        # Provide the contents of the email.
+        response = client.send_email(
+            Destination={
+                "ToAddresses": [
+                    RECIPIENT,
+                ],
+            },
+            Message={
+                "Body": {
+                    "Html": {
+                        "Charset": CHARSET,
+                        "Data": BODY_HTML,
+                    },
+                    "Text": {
+                        "Charset": CHARSET,
+                        "Data": BODY_TEXT,
+                    },
+                },
+                "Subject": {
+                    "Charset": CHARSET,
+                    "Data": SUBJECT,
+                },
+            },
+            Source=SENDER,
+            # If you are not using a configuration set, comment or delete the
+            # following line
+            # ConfigurationSetName=CONFIGURATION_SET,
+        )
+    # Display an error if something goes wrong.
+    except ClientError as e:
+        print(e.response["Error"]["Message"])
+    else:
+        print("Email sent! Message ID:"),
+        print(response["MessageId"])
+
+
 if __name__ == "__main__":
-    while True:
-        table = getAnalysis()
-        minutesSleep = 15
-        indexTable = getAnalysis(isIndex=False)
-        currentTime = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-        for filename in [currentTime + ".html", "latest.html"]:
-            with open(filename, "w") as f:
-                f.write(f"<center><h4>Last Update At: {datetime.datetime.now().strftime('%Y %m %d - %H:%M:%S')}</h4></center>")
-                f.write(table + "\n<br><hr><br>" + indexTable + "<hr>")
-                f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(1) + " );</script>")
-            print("Written to file: ", f.name)
-        time.sleep(minutesSleep * 60)
+    # while True:
+    table = getAnalysis()
+    # minutesSleep = 15
+    indexTable = getAnalysis(isIndex=False)
+    finalEmailStr = ""
+    currentTime = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+    finalEmailStr += f"<center><h4>Last Update At: {datetime.datetime.now().strftime('%Y %m %d - %H:%M:%S')}</h4></center>"
+    finalEmailStr += table + "\n<br><hr><br>" + indexTable + "<hr>"
+    sendEmail(finalEmailStr)
+    # time.sleep(minutesSleep * 60)
