@@ -3,6 +3,7 @@
 *.d.ts
 node_modules
 
+latest.html
 202*.txt
 202*.html
 # CDK asset staging directory
