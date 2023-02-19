@@ -220,5 +220,14 @@ if __name__ == "__main__":
     currentTime = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
     finalEmailStr += f"<center><h4>Last Update At: {datetime.datetime.now().strftime('%Y %m %d - %H:%M:%S')}</h4></center>"
     finalEmailStr += table + "\n<br><hr><br>" + indexTable + "<hr>"
-    sendEmail(finalEmailStr)
+    if isEnvTest:
+        # write to file
+        for filename in [currentTime + ".html", "latest.html"]:
+            with open(filename, "w") as f:
+                f.write(finalEmailStr)
+                f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(1) + " );</script>")
+            print("Written to file: ", f.name)
+        pass
+    else:
+        sendEmail(finalEmailStr)
     # time.sleep(minutesSleep * 60)
