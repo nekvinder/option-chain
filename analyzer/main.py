@@ -179,7 +179,6 @@ def getCallPutHistoryTable():
         prevRow = histData[i - 1] if i > 0 else row
         isUp = row[callColumnIndex] > prevRow[callColumnIndex]
         isDown = row[callColumnIndex] < prevRow[callColumnIndex]
-        print(row[1], row[3], row[4], isUp, isDown)
         symbol = "▲" if isUp else "▼" if isDown else "▬"
         tableData.append(
             [datetime.datetime.strptime(row[1], "%Y-%m-%d %H:%M:%S.%f").strftime("%H:%M"), row[3], row[4], symbol],
