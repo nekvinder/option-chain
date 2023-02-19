@@ -171,13 +171,16 @@ def getAnalysis(isIndex=True):
 def getCallPutHistoryTable():
     tableHeader = ["Time", "Call", "Put"]
     tableData = []
-    for row in getCallPutHistoryToday():
+    histData = getCallPutHistoryToday()
+
+    for i in range(len(histData)):
+        row = histData[i]
+        prevRow = histData[i - 1] if i > 0 else row
+        isUp = row[1] > prevRow[1]
+        isEqual = row[1] == prevRow[1]
+        symbol = "▲" if isUp else "▼" if not isUp and not isEqual else "▬"
         tableData.append(
-            [
-                datetime.datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S.%f").strftime("%H:%M"),
-                row[2],
-                row[3],
-            ],
+            [datetime.datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S.%f").strftime("%H:%M"), row[2], row[3], symbol],
         )
     htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
     return "<center>" + htmlTable + "</center>"
