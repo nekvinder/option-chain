@@ -4,9 +4,11 @@ import time
 from tabulate import tabulate
 import datetime
 import urllib.parse
-from helper import getJson, printProgressBar
+from helper import getJson, printProgressBar, sendEmail, insertIntoTable, getCallPutHistoryToday
 
+scriptTriggerTime = datetime.datetime.now()
 isEnvTest = os.environ.get("ENV") == "test"
+isDebug = os.environ.get("DEBUG") == "true"
 indicesUrl = "https://www.nseindia.com/api/option-chain-indices?symbol="
 equitiesUrl = "https://www.nseindia.com/api/option-chain-equities?symbol="
 
@@ -31,52 +33,89 @@ def getOIAnalysis(json_obj, splitIndex, searchRecordsCount, callType):
         strikePrice = json_obj["filtered"]["data"][i]["strikePrice"]
         res.append((strikePrice, openInterest))
     resSortedOnOI = sorted(res, key=lambda x: x[1], reverse=True)
+    if isDebug:
+        print(resSortedOnOI)
+    return resSortedOnOI[0][0]
+
+
+def getOISum(json_obj, splitIndex, searchRecordsCount, callType):
+    res = []
+    start = splitIndex - searchRecordsCount
+    end = splitIndex + searchRecordsCount
+    for i in range(start, end):
+        openInterest = json_obj["filtered"]["data"][i][callType]["openInterest"]
+        strikePrice = json_obj["filtered"]["data"][i]["strikePrice"]
+        res.append((strikePrice, openInterest))
+    resSortedOnOI = sorted(res, key=lambda x: x[1], reverse=True)
+    if isDebug:
+        print(resSortedOnOI)
     return resSortedOnOI[0][0]
 
 
 def getData(sym, isIndex=False):
+    if isDebug:
+        print(sym)
     result = {"sym": sym}
 
     searchRecordsCount = 5
     url = indicesUrl + sym if isIndex else equitiesUrl + sym
     json_obj = getJson(url, cookies=cookies)
-    underlying_value = json_obj["records"]["underlyingValue"]
 
-    # put
+    underlying_value = json_obj["records"]["underlyingValue"]
     splitIndex = 0
     for i in range(len(json_obj["filtered"]["data"])):
         if json_obj["filtered"]["data"][i]["strikePrice"] > underlying_value:
             splitIndex = i
             break
 
-    result["put"] = getOIAnalysis(json_obj, splitIndex, searchRecordsCount, "CE")
-    result["call"] = getOIAnalysis(json_obj, splitIndex, searchRecordsCount, "PE")
+    intrestedRecordsRange = 5
+    start = splitIndex - intrestedRecordsRange + 1
+    end = splitIndex + intrestedRecordsRange + 1
+    result["recordsInRange"] = json_obj["filtered"]["data"][start:end]
+    result["ceSum"] = 0
+    result["peSum"] = 0
+    result["isGreaterThan999"] = False
+    for i in range(len(result["recordsInRange"])):
+        # print("ce", result["recordsInRange"][i]["CE"]["openInterest"])
+        # print("pe", result["recordsInRange"][i]["PE"]["openInterest"])
+        peValue = int(result["recordsInRange"][i]["PE"]["openInterest"])
+        ceValue = int(result["recordsInRange"][i]["CE"]["openInterest"])
 
-    result["currentValue"] = underlying_value
-    putDiff = result["put"] - underlying_value
-    callDiff = result["call"] - underlying_value
+        result["ceSum"] += ceValue
+        result["peSum"] += peValue
+        result["pcr"] = result["peSum"] / result["ceSum"]
+        if peValue > 999 or ceValue > 999:
+            result["isGreaterThan999"] = True
 
-    if abs(putDiff) < abs(callDiff):
-        result["analysisType"] = "put"
-        result["analysisValue"] = round(abs(putDiff), 3)
-    else:
-        result["analysisType"] = "call"
-        result["analysisValue"] = round(abs(callDiff), 3)
+    # print(result["pcr"])
 
-    if "IS_AWS_LAMBDA" in os.environ:
-        print("Done for", sym)
+    # result["put"] = getOIAnalysis(json_obj, splitIndex, searchRecordsCount, "CE")
+    # result["call"] = getOIAnalysis(json_obj, splitIndex, searchRecordsCount, "PE")
+
+    # result["currentValue"] = underlying_value
+    # putDiff = result["put"] - underlying_value
+    # callDiff = result["call"] - underlying_value
+
+    # if abs(putDiff) < abs(callDiff):
+    #     result["analysisType"] = "put"
+    #     result["analysisValue"] = round(abs(putDiff), 3)
+    # else:
+    #     result["analysisType"] = "call"
+    #     result["analysisValue"] = round(abs(callDiff), 3)
 
     return result
 
 
 def getAnalysis(isIndex=True):
+
     if isIndex:
         stockList = ["NIFTY", "BANKNIFTY"]
         stockListSuffixGF = ["NIFTY_50", "NIFTY_BANK"]
     else:
         stockList = getStockList()
         if isEnvTest:
-            stockList = stockList[:5]
+            pass
+            # stockList = stockList[:5]
 
     res = []
     prefix = "Progress: Index" if isIndex else "Progress: Equity"
@@ -90,39 +129,58 @@ def getAnalysis(isIndex=True):
             print("Error for", stock, e)
 
     # sort res based on analysisValue
-    res = [i for i in res if i is not None]
-    res = sorted(res, key=lambda x: x["analysisValue"])
+    res = [i for i in res if i is not None and i["isGreaterThan999"]]
+    res = sorted(res, key=lambda x: x["pcr"])
 
-    countResCall = len([i for i in res if i["analysisType"] == "call"])
-    countResPut = len([i for i in res if i["analysisType"] == "put"])
+    # countResCall = len([i for i in res if i["analysisType"] == "call"])
+    # countResPut = len([i for i in res if i["analysisType"] == "put"])
 
     linkRefTD = f"https://in.tradingview.com/chart/?symbol=NSE%3A"
     linkRefGF = f"https://www.google.com/finance/quote/"
     gfSuffix = "INDEXNSE" if isIndex else "NSE"
 
-    tableHeader = ["Stock", "Put OI", "Current", "Call OI", "Analysis", "Analysis Value", "Link TD", "Link GF"]
+    # tableHeader = ["Stock", "Put OI", "Current", "Call OI", "Analysis", "Analysis Value", "Link TD", "Link GF"]
+    tableHeader = ["Stock", "PCR", "TV", "GF"]
     tableData = []
     for r in res:
         symGF = stockListSuffixGF[stockList.index(r["sym"])] if isIndex else r["sym"]
         tableData.append(
             [
                 r["sym"],
-                r["put"],
-                r["currentValue"],
-                r["call"],
-                r["analysisType"],
-                r["analysisValue"],
+                round(r["pcr"], 2),
+                # r["currentValue"],
+                # r["call"],
+                # r["analysisType"],
+                # r["analysisValue"],
                 f'<a target="_" href="{linkRefTD + r["sym"]}">Chart</a>',
                 f'<a target="_" href="{linkRefGF + symGF + ":" + gfSuffix }">GF</a>',
             ],
         )
 
-    htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
     htmlStr = ""
+    htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
     if not isIndex:
-        htmlStr += f"<center><h4>Total - Call({countResCall}) Put({countResPut})</h4></center>"
+        countCall = len([i for i in res if i["pcr"] > 1])
+        countPut = len([i for i in res if i["pcr"] < 1])
+        insertIntoTable(scriptTriggerTime, countCall, countPut)
+        htmlStr += f"<center><h4>Total - Call({countCall}) Put({countPut})</h4></center>"
     htmlStr += "<center>" + htmlTable + "</center>"
     return htmlStr
+
+
+def getCallPutHistoryTable():
+    tableHeader = ["Time", "Call", "Put"]
+    tableData = []
+    for row in getCallPutHistoryToday():
+        tableData.append(
+            [
+                datetime.datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S.%f").strftime("%H:%M"),
+                row[1],
+                row[2],
+            ],
+        )
+    htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
+    return "<center>" + htmlTable + "</center>"
 
 
 def generateLocalFiles():
@@ -130,85 +188,14 @@ def generateLocalFiles():
     table = getAnalysis()
     # minutesSleep = 15
     indexTable = getAnalysis(isIndex=False)
-    currentTime = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-    for filename in [currentTime + ".html", "latest.html"]:
+    scriptTriggerTimeStr = f"{scriptTriggerTime.strftime('%Y%m%d%H%M%S')}"
+    for filename in [scriptTriggerTimeStr + ".html", "latest.html"]:
         with open(filename, "w") as f:
-            f.write(f"<center><h4>Last Update At: {datetime.datetime.now().strftime('%Y %m %d - %H:%M:%S')}</h4></center>")
+            f.write(f"<center><h4>Last Update At: {scriptTriggerTime.strftime('%Y %m %d - %H:%M:%S')}</h4></center>")
             f.write(table + "\n<br><hr><br>" + indexTable + "<hr>")
             # f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(1) + " );</script>")
         print("Written to file: ", f.name)
     # time.sleep(minutesSleep * 60)
-
-
-def sendEmail(BODY_HTML):
-    import boto3
-    from botocore.exceptions import ClientError
-
-    # Replace sender@example.com with your "From" address.
-    # This address must be verified with Amazon SES.
-    SENDER = "nekAnalyzer <nekvinder@gmail.com>"
-
-    # Replace recipient@example.com with a "To" address. If your account
-    # is still in the sandbox, this address must be verified.
-    # RECIPIENT = "goesdeeper@protonmail.com"
-    RECIPIENT = "rocksukhvinder@gmail.com"
-
-    # Specify a configuration set. If you do not want to use a configuration
-    # set, comment the following variable, and the
-    # ConfigurationSetName=CONFIGURATION_SET argument below.
-    # CONFIGURATION_SET = "ConfigSet"
-
-    # If necessary, replace us-west-2 with the AWS Region you're using for Amazon SES.
-    AWS_REGION = "ap-south-1"
-
-    # The subject line for the email.
-    SUBJECT = "Analysis Bot"
-
-    # The email body for recipients with non-HTML email clients.
-    BODY_TEXT = "Err code 126"
-
-    # The character encoding for the email.
-    CHARSET = "UTF-8"
-
-    # Create a new SES resource and specify a region.
-    client = boto3.client("ses", region_name=AWS_REGION)
-
-    # Try to send the email.
-    try:
-        # Provide the contents of the email.
-        response = client.send_email(
-            Destination={
-                "ToAddresses": [
-                    RECIPIENT,
-                ],
-            },
-            Message={
-                "Body": {
-                    "Html": {
-                        "Charset": CHARSET,
-                        "Data": BODY_HTML,
-                    },
-                    "Text": {
-                        "Charset": CHARSET,
-                        "Data": BODY_TEXT,
-                    },
-                },
-                "Subject": {
-                    "Charset": CHARSET,
-                    "Data": SUBJECT,
-                },
-            },
-            Source=SENDER,
-            # If you are not using a configuration set, comment or delete the
-            # following line
-            # ConfigurationSetName=CONFIGURATION_SET,
-        )
-    # Display an error if something goes wrong.
-    except ClientError as e:
-        print(e.response["Error"]["Message"])
-    else:
-        print("Email sent! Message ID:"),
-        print(response["MessageId"])
 
 
 if __name__ == "__main__":
@@ -216,12 +203,20 @@ if __name__ == "__main__":
     table = getAnalysis()
     # minutesSleep = 15
     indexTable = getAnalysis(isIndex=False)
-    finalEmailStr = ""
+    finalEmailStr = """<style>
+  * {
+    font-family: monospace, sans-serif;
+  }
+
+  td {
+    padding-left: 20px;
+  }
+</style>"""
+
     currentTime = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
     finalEmailStr += f"<center><h4>Last Update At: {datetime.datetime.now().strftime('%Y %m %d - %H:%M:%S')}</h4></center>"
-    finalEmailStr += table + "\n<br><hr><br>" + indexTable + "<hr>"
+    finalEmailStr += table + "\n<br><hr><br>" + getCallPutHistoryTable() + "<br><hr><br>" + indexTable + "<hr>"
     if isEnvTest:
-        # write to file
         for filename in [currentTime + ".html", "latest.html"]:
             with open(filename, "w") as f:
                 f.write(finalEmailStr)

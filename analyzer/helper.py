@@ -1,4 +1,5 @@
 import requests
+import datetime
 import os
 import json
 import sqlite3
@@ -8,8 +9,29 @@ cacheReq = sqlite3.connect("cacheReqs.db")
 cur = cacheReq.cursor()
 
 
-def createTable():
-    cur.execute("CREATE TABLE IF NOT EXISTS data (date TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL)")
+def createTableIfNotExists():
+    cur.execute("CREATE TABLE IF NOT EXISTS data (date DATE,day date, countCall REAL, countPut REAL)")
+
+
+createTableIfNotExists()
+
+
+def insertIntoTable(date, call, put):
+    today = datetime.date.today()
+    cur.execute("INSERT INTO data VALUES (?,?, ?, ?)", (date, today, call, put))
+    cacheReq.commit()
+
+
+def getCallPutHistoryToday():
+
+    # get todays dated data
+    cur.execute("SELECT * FROM data WHERE day = date('now')")
+    todaysData = cur.fetchall()
+    print(todaysData)
+    return todaysData
+
+    # cur.execute("SELECT * FROM data")
+    # return cur.fetchall()
 
 
 def printProgressBar(iteration, total, prefix="", suffix="", decimals=1, length=100, fill="█", printEnd="\r"):
@@ -61,3 +83,46 @@ def getJson(url, cookies=None):
             json.dump(json_obj, f)
 
     return json_obj
+
+
+def sendEmail(BODY_HTML):
+    import boto3
+    from botocore.exceptions import ClientError
+
+    SENDER = "nekAnalyzer <nekvinder@gmail.com>"
+    RECIPIENT = "rocksukhvinder@gmail.com"
+    AWS_REGION = "ap-south-1"
+    SUBJECT = "Analysis Bot"
+    BODY_TEXT = "Err code 126"
+    CHARSET = "UTF-8"
+    client = boto3.client("ses", region_name=AWS_REGION)
+    try:
+        response = client.send_email(
+            Destination={
+                "ToAddresses": [
+                    RECIPIENT,
+                ],
+            },
+            Message={
+                "Body": {
+                    "Html": {
+                        "Charset": CHARSET,
+                        "Data": BODY_HTML,
+                    },
+                    "Text": {
+                        "Charset": CHARSET,
+                        "Data": BODY_TEXT,
+                    },
+                },
+                "Subject": {
+                    "Charset": CHARSET,
+                    "Data": SUBJECT,
+                },
+            },
+            Source=SENDER,
+        )
+    except ClientError as e:
+        print(e.response["Error"]["Message"])
+    else:
+        print("Email sent! Message ID:"),
+        print(response["MessageId"])
