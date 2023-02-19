@@ -135,7 +135,7 @@ def generateLocalFiles():
         with open(filename, "w") as f:
             f.write(f"<center><h4>Last Update At: {datetime.datetime.now().strftime('%Y %m %d - %H:%M:%S')}</h4></center>")
             f.write(table + "\n<br><hr><br>" + indexTable + "<hr>")
-            f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(1) + " );</script>")
+            # f.write("\n<script>setTimeout(function(){window.location.reload(1);}, 100*60*" + str(1) + " );</script>")
         print("Written to file: ", f.name)
     # time.sleep(minutesSleep * 60)
 
