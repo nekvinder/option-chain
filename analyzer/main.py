@@ -83,10 +83,10 @@ def getData(sym, isIndex=False):
 
         result["ceSum"] += ceValue
         result["peSum"] += peValue
-        result["pcr"] = result["peSum"] / result["ceSum"]
         if peValue > 999 or ceValue > 999:
             result["isGreaterThan999"] = True
 
+    result["pcr"] = result["peSum"] / result["ceSum"]
     # print(result["pcr"])
 
     # result["put"] = getOIAnalysis(json_obj, splitIndex, searchRecordsCount, "CE")
