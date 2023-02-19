@@ -4,6 +4,8 @@
 node_modules
 
 latest.html
+cache
+__pycache__
 202*.txt
 202*.html
 # CDK asset staging directory
