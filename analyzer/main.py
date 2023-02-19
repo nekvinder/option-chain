@@ -175,8 +175,8 @@ def getCallPutHistoryTable():
         tableData.append(
             [
                 datetime.datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S.%f").strftime("%H:%M"),
-                row[1],
                 row[2],
+                row[3],
             ],
         )
     htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
