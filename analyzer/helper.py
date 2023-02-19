@@ -4,7 +4,7 @@ import os
 import json
 import sqlite3
 
-enableCache = False
+enableCache = os.environ.get("CACHE") == "true"
 cacheReq = sqlite3.connect("cache/Reqs.db")
 cur = cacheReq.cursor()
 
