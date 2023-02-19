@@ -174,13 +174,15 @@ def getCallPutHistoryTable():
     histData = getCallPutHistoryToday()
 
     for i in range(len(histData)):
+        callColumnIndex = 3
         row = histData[i]
         prevRow = histData[i - 1] if i > 0 else row
-        isUp = row[1] > prevRow[1]
-        isEqual = row[1] == prevRow[1]
-        symbol = "▲" if isUp else "▼" if not isUp and not isEqual else "▬"
+        isUp = row[callColumnIndex] > prevRow[callColumnIndex]
+        isDown = row[callColumnIndex] < prevRow[callColumnIndex]
+        print(row[1], row[3], row[4], isUp, isDown)
+        symbol = "▲" if isUp else "▼" if isDown else "▬"
         tableData.append(
-            [datetime.datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S.%f").strftime("%H:%M"), row[2], row[3], symbol],
+            [datetime.datetime.strptime(row[1], "%Y-%m-%d %H:%M:%S.%f").strftime("%H:%M"), row[3], row[4], symbol],
         )
     htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
     return "<center>" + htmlTable + "</center>"

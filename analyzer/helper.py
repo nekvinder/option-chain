@@ -10,7 +10,7 @@ cur = cacheReq.cursor()
 
 
 def createTableIfNotExists():
-    cur.execute("CREATE TABLE IF NOT EXISTS data (date DATE,day date, countCall REAL, countPut REAL)")
+    cur.execute("CREATE TABLE IF NOT EXISTS data (name_id integer primary key AUTOINCREMENT,  date DATE,day date, countCall REAL, countPut REAL)")
 
 
 createTableIfNotExists()
@@ -18,7 +18,7 @@ createTableIfNotExists()
 
 def insertIntoTable(date, call, put):
     today = datetime.date.today()
-    cur.execute("INSERT INTO data VALUES (?,?, ?, ?)", (date, today, call, put))
+    cur.execute("INSERT INTO data ( date, day, countCall, countPut ) VALUES (?,?, ?, ?)", (date, today, call, put))
     cacheReq.commit()
 
 
