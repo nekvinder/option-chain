@@ -169,19 +169,23 @@ def getAnalysis(isIndex=True):
 
 
 def getCallPutHistoryTable():
-    tableHeader = ["Time", "Call", "Put"]
+    tableHeader = ["Time", "Call", "Put", "CD", "PD"]
     tableData = []
     histData = getCallPutHistoryToday()
 
     for i in range(len(histData)):
         callColumnIndex = 3
+        putColumnIndex = 4
         row = histData[i]
         prevRow = histData[i - 1] if i > 0 else row
-        isUp = row[callColumnIndex] > prevRow[callColumnIndex]
-        isDown = row[callColumnIndex] < prevRow[callColumnIndex]
-        symbol = "▲" if isUp else "▼" if isDown else "▬"
+        isUpPut = row[putColumnIndex] < prevRow[putColumnIndex]
+        isDownPut = row[putColumnIndex] > prevRow[putColumnIndex]
+        symbolPut = "▲" if isUpPut else "▼" if isDownPut else "▬"
+        isUpCall = row[callColumnIndex] > prevRow[callColumnIndex]
+        isDownCall = row[callColumnIndex] < prevRow[callColumnIndex]
+        symbolCall = "▲" if isUpCall else "▼" if isDownCall else "▬"
         tableData.append(
-            [datetime.datetime.strptime(row[1], "%Y-%m-%d %H:%M:%S.%f").strftime("%H:%M"), row[3], row[4], symbol],
+            [datetime.datetime.strptime(row[1], "%Y-%m-%d %H:%M:%S.%f").strftime("%H:%M"), row[3], row[4], symbolCall, symbolPut],
         )
     htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
     return "<center>" + htmlTable + "</center>"
