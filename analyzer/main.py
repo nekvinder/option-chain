@@ -72,6 +72,8 @@ def getData(sym, isIndex=False):
     start = splitIndex - intrestedRecordsRange + 1
     end = splitIndex + intrestedRecordsRange + 1
     result["recordsInRange"] = json_obj["filtered"]["data"][start:end]
+    result["underlyingValue"] = underlying_value
+    print(result)
     result["ceSum"] = 0
     result["peSum"] = 0
     result["isGreaterThan999"] = False
@@ -140,12 +142,13 @@ def getAnalysis(isIndex=True):
     gfSuffix = "INDEXNSE" if isIndex else "NSE"
 
     # tableHeader = ["Stock", "Put OI", "Current", "Call OI", "Analysis", "Analysis Value", "Link TD", "Link GF"]
-    tableHeader = ["Stock", "PCR", "TV", "GF"]
+    tableHeader = ["Strike", "Stock", "PCR", "TV", "GF"]
     tableData = []
     for r in res:
         symGF = stockListSuffixGF[stockList.index(r["sym"])] if isIndex else r["sym"]
         tableData.append(
             [
+                r["underlyingValue"],
                 r["sym"],
                 round(r["pcr"], 2),
                 # r["currentValue"],
