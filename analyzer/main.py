@@ -73,7 +73,6 @@ def getData(sym, isIndex=False):
     end = splitIndex + intrestedRecordsRange + 1
     result["recordsInRange"] = json_obj["filtered"]["data"][start:end]
     result["underlyingValue"] = underlying_value
-    print(result)
     result["ceSum"] = 0
     result["peSum"] = 0
     result["isGreaterThan999"] = False
