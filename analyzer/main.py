@@ -189,6 +189,7 @@ def getCallPutHistoryTable():
         tableData.append(
             [datetime.datetime.strptime(row[1], "%Y-%m-%d %H:%M:%S.%f").strftime("%H:%M"), row[3], row[4], symbolCall, symbolPut],
         )
+    tableData.reverse()
     htmlTable = tabulate(tableData, headers=tableHeader, tablefmt="unsafehtml")
     return "<center>" + htmlTable + "</center>"
 
